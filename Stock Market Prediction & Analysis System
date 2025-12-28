@@ -1,0 +1,109 @@
+pip install yfinance pandas numpy matplotlib scikit-learn streamlit
+import yfinance as yf
+import pandas as pd
+
+# Stock symbol (Indian market example)
+stock_symbol = "TCS.NS"
+
+# Download data
+data = yf.download(stock_symbol, start="2018-01-01", end="2024-01-01")
+
+# Save to CSV
+data.to_csv("raw_stock_data.csv")
+
+print("Data downloaded successfully!")
+print(data.head())
+
+
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
+# Load data
+data = pd.read_csv("raw_stock_data.csv")
+
+# Remove missing values
+data.dropna(inplace=True)
+
+# Select Close price
+close_price = data[['Close']]
+
+# Normalize data
+scaler = MinMaxScaler()
+scaled_data = scaler.fit_transform(close_price)
+
+data['Scaled_Close'] = scaled_data
+
+# Save processed data
+data.to_csv("processed_stock_data.csv", index=False)
+
+print("Preprocessing completed!")
+
+
+
+import pandas as pd
+
+data = pd.read_csv("processed_stock_data.csv")
+
+# Moving Average
+data['MA_20'] = data['Close'].rolling(window=20).mean()
+
+# RSI
+delta = data['Close'].diff()
+gain = delta.clip(lower=0)
+loss = -delta.clip(upper=0)
+
+avg_gain = gain.rolling(14).mean()
+avg_loss = loss.rolling(14).mean()
+
+rs = avg_gain / avg_loss
+data['RSI'] = 100 - (100 / (1 + rs))
+
+data.to_csv("final_stock_data.csv", index=False)
+print("Indicators added!")
+
+
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import math
+
+data = pd.read_csv("final_stock_data.csv")
+data.dropna(inplace=True)
+
+X = data[['MA_20', 'RSI']]
+y = data['Close']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, shuffle=False
+)
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+predictions = model.predict(X_test)
+
+mae = mean_absolute_error(y_test, predictions)
+rmse = math.sqrt(mean_squared_error(y_test, predictions))
+
+print("MAE:", mae)
+print("RMSE:", rmse)
+
+
+
+latest_price = data.iloc[-1]['Close']
+predicted_price = model.predict(X.tail(1))[0]
+latest_rsi = data.iloc[-1]['RSI']
+
+if predicted_price > latest_price and latest_rsi < 30:
+    print("BUY Signal")
+elif predicted_price < latest_price and latest_rsi > 70:
+    print("SELL Signal")
+else:
+    print("HOLD")
+
+
+
+
